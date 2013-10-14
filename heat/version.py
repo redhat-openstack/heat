@@ -13,6 +13,14 @@
 #    under the License.
 
 
-import pbr.version
+class VersionInfo(object):
+    release = 'REDHATHEATRELEASE'
+    version = 'REDHATHEATVERSION'
 
-version_info = pbr.version.VersionInfo('heat')
+    def version_string(self):
+        return self.version
+
+    def release_string(self):
+        return self.release
+
+version_info = VersionInfo()
