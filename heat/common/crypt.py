@@ -45,19 +45,39 @@ def oslo_decrypt_v1(auth_info):
                        auth_info, b64decode=True)
 
 
+#This is here for testing verification purposes related to the comment below
+#def heat_encrypt(auth_info):
+#    import M2Crypto
+#    from os import urandom
+#    iv = urandom(16)
+#    cipher = M2Crypto.EVP.Cipher(alg='aes_128_cbc', key_as_bytes=False,
+#                                 padding=True,
+#                                 key=cfg.CONF.auth_encryption_key[:32], iv=iv,
+#                                 op=1) # 1 is encode
+#    update = cipher.update(auth_info)
+#    final = cipher.final()
+#    res = base64.b64encode(iv + update + final)
+#    return 'heat_decrypt', res
+
+
 def heat_decrypt(auth_info):
-    """Decrypt function for data that has been encrypted using an older
-    version of Heat.
-    Note: the encrypt function returns the function that is needed to
-    decrypt the data. The database then stores this. When the data is
-    then retrieved (potentially by a later version of Heat) the decrypt
-    function must still exist. So whilst it may seem that this function
-    is not referenced, it will be referenced from the database.
-    """
+    # This is an AES specific version of oslo decrypt, reimplementing the
+    # commented out code below. The main differences are a different key size
+    # and different padding to be compatible with our old m2crypto based
+    # heat_encrypt. This patch will be dropped in a few releases since once
+    # people upgrade, the new encrypt method will be used making this
+    # decryption method no longer necessary.
+    #sym = utils.SymmetricCrypto()
+    #return sym.decrypt(cfg.CONF.auth_encryption_key[:16],
+    #                   auth_info, b64decode=True)
+
     if auth_info is None:
         return None
-    auth = base64.b64decode(auth_info)
-    iv = auth[:AES.block_size]
-    cipher = AES.new(cfg.CONF.auth_encryption_key[:32], AES.MODE_CFB, iv)
-    res = cipher.decrypt(auth[AES.block_size:])
-    return res
+    auth_info = base64.b64decode(auth_info)
+    iv = auth_info[:AES.block_size]
+    # Note: MUST send in 16 bytes long key for AES-128
+    cipher = AES.new(cfg.CONF.auth_encryption_key[:16], AES.MODE_CBC, iv)
+    padded = cipher.decrypt(auth_info[AES.block_size:])
+    l = ord(padded[-1])
+    plain = padded[:-l]
+    return plain
